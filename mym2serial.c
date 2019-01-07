@@ -194,10 +194,16 @@ int main(int argc,char *argv[])
 
     fclose(f);
 
+    size_t nwrite = 0;
+
     serial_fd = open (argv[2], O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd > 0)
     {
-        char buffer[14];
+        char buffer[16];
+        // set first and last bytes of buffer to the frame marker bytes
+        buffer[0]  = 0x02; // STX
+        buffer[15] = 0x03; // ETX
+
         printf("Serial opened...\n");
         set_interface_attribs (serial_fd, B115200, 0); // 115200 8n1
         set_blocking (serial_fd, 0);
@@ -208,9 +214,17 @@ int main(int argc,char *argv[])
         {
             for(i=0;i<REGS;i++)
             {
-                buffer[i] = data[i][n];
+                // write the 14 bytes of data to buffer after STX
+                buffer[i + 1] = data[i][n];
             }
-            write(serial_fd, buffer, 14);
+            // buffer[15] ETX is left intact since buffer is 2 bytes
+            // longer than the register data.
+
+            // send the frame over serial port
+            nwrite = write(serial_fd, buffer, 16);
+
+            // TODO should check nwrite == 16
+
             // 50Hz so wait a little bit...
             printf("\rVBL%ld ", n);
             fflush(stdout);

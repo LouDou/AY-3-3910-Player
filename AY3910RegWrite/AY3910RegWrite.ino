@@ -141,8 +141,6 @@ enum
   REG_IOB
 };
 
-
-
 void write_2149_reg(uint8_t reg, uint8_t value)
 {
   setup_data(ADDRESS);
@@ -157,7 +155,6 @@ void write_2149_reg(uint8_t reg, uint8_t value)
   delayMicroseconds(1);
     
   set_control(WRITE);
-  
   delayMicroseconds(5);
   
   set_control(INACTIVE);
@@ -168,12 +165,50 @@ void write_2149_reg(uint8_t reg, uint8_t value)
 uint8_t read_2149_reg(uint8_t reg)
 {
   uint8_t ret = 0;
-
   return ret;
 }
 
-char regs[14];
-int j;
+const char STX = 0x02;
+const char ETX = 0x03;
+
+// Enough buffer to hold 14 registers, plus 2 frame markers all twice
+// e.g. LEN = (STX + registers + ETX) * 2
+// This buffer is written to in a circular fashion, but written to
+// twice per cycle, with an offset of LEN/2.
+// This is done to ensure that there is always a contiguous copy
+// of the data frame in the buffer  - regardless of whether
+// junk is received between frames - and which makes it easier
+// to detect a complete frame and read the data out.
+char buf[32];
+int pw; // buf write pointer
+int pr; // buf read pointer
+
+// Example layout of a data frame within the buffer:
+//
+// S == STX, E == ETX, d == data,
+// R == read pointer, W = write pointer
+//
+// #00000000001111111111222222222233
+// #01234567890123456789012345678901
+// [......SddddddddddddddE..........]
+// *                     R
+// ?     W               W
+//
+// W may have been 21, or 05.
+// (check: 05 == (21 + 16) % 32)
+//
+// R will always be > 15 and < 32;
+// 
+// if    R   == &ETX == 21,
+// then &STX == 06   == 21 - 15
+// and  &d   == 07   == 21 - 14
+// 
+// Assuming no junk is recieved, then the data shown
+// as '.' will be a copy of the framed data except that
+// it is always wrapped around the end/start of buf.
+// It could also of course be junk or an incomplete frame.
+// A complete data frame ending at R will never be wrapped.
+
 
 void setup()
 {
@@ -186,15 +221,60 @@ void setup()
   write_2149_reg(REG_LVL_A, B00000000);
   write_2149_reg(REG_LVL_B, B00000000);
   write_2149_reg(REG_LVL_C, B00000000);
-  j = 0;
+
+  pw = 0;
+  pr = 0;
 }
 
 void loop()
 {
-  int i;
-  while (Serial.readBytes(regs, 14) != 14);
-  for(i = 0; i < 14; i++)
-  {
-    write_2149_reg(i, regs[i]);
+  // For each available byte
+  while (Serial.available()) {
+    // Read it
+    buf[pw] = Serial.read();
+
+    // Ensure the buffer contains duplicate
+    // data and update the read pointer
+    if (pw < 16) {
+      // If writing to the first half of buf,
+      // advance the read pointer,
+      pr = pw + 16;
+      // and copy the current byte forwards
+      buf[pr] = buf[pw];
+    } else {
+      // If writing to the second half of buf,
+      // read pointer is the same as write pointer,
+      pr = pw;
+      // and copy the current byte backwards
+      buf[pw - 16] = buf[pw];
+    }
+
+    // If there is a framed message ending at pr;
+    // NOTE: that this is not entirely watertight,
+    // because the register data can take any values,
+    // including (0x02, 0x03), then there is a chance
+    // that the buf may have STX...ETX 16 bytes apart
+    // but these bytes are not the frame markers.
+    // TODO needs testing in practice to see how often
+    // this occurs.
+    // In any case, this framing should be more reliable
+    // than assuming that the last 14 bytes recieved are
+    // intended for the registers in the order given above.
+    if (buf[pr] == ETX && buf[pr - 15] == STX) {
+      // Calculate the start of data within the frame
+      // within the buffer; this will always end in the
+      // second half of buf.
+      char* data = buf + pr - 14;
+      for (int i = 0; i < 14; ++i)
+      {
+        write_2149_reg(i, data + i);
+      }
+
+      // TODO: we could send an ACK back to the other side
+      // for each processed frame?
+    }
+
+    // Advance the write pointer
+    pw = (pw + 1) % 32;
   }
 }
