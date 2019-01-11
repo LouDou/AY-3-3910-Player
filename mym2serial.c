@@ -2,10 +2,10 @@
  *                     MYM Player to Serial port
  *                 (c) 2014 Manoel "Godzil" Trapier
  *
- * This file is base on the mym2ym by 
+ * This file is base on the mym2ym by
  * Marq/Lieves!Tuore & Fit (marq@iki.fi)
  *
- * The YM writing part have been removed and replaced by code to 
+ * The YM writing part have been removed and replaced by code to
  * send register dump to the serial port.
  **************************** Licence ******************************
  * This file is licenced under the licence:
@@ -163,7 +163,7 @@ int main(int argc,char *argv[])
             {
                 if(!readbits(1,f))  /*  Unchanged register  */
                 {
-                    
+
                     data[i][n+index]=current[i];
                     index++;
                 }
@@ -199,7 +199,11 @@ int main(int argc,char *argv[])
     serial_fd = open (argv[2], O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd > 0)
     {
-        char buffer[16];
+        unsigned char buffer[16];
+        
+        // send a bunch of junk first
+        nwrite = write(serial_fd, buffer, 13);
+
         // set first and last bytes of buffer to the frame marker bytes
         buffer[0]  = 0x02; // STX
         buffer[15] = 0x03; // ETX
@@ -221,14 +225,26 @@ int main(int argc,char *argv[])
             // longer than the register data.
 
             // send the frame over serial port
+            
+            // TEST: send in fragments
+            // nwrite = write(serial_fd, buffer, 4);
+            // nwrite = write(serial_fd, buffer + 4, 5);
+            // nwrite = write(serial_fd, buffer + 9, 7);
+
+            // TEST: send whole frame
             nwrite = write(serial_fd, buffer, 16);
 
             // TODO should check nwrite == 16
 
             // 50Hz so wait a little bit...
-            printf("\rVBL%ld ", n);
+            printf("VBL%ld ", n);
+            printf("%02X %02X %02X %02X ", buffer[0], buffer[1], buffer[2], buffer[3]);
+            printf("%02X %02X %02X %02X ", buffer[4], buffer[5], buffer[6], buffer[7]);
+            printf("%02X %02X %02X %02X ", buffer[8], buffer[9], buffer[10], buffer[11]);
+            printf("%02X %02X %02X %02X\n", buffer[12], buffer[13], buffer[14], buffer[15]);
             fflush(stdout);
             usleep(20*1000); /* 50Hz */
+
         }
         printf("\n");
     }
@@ -250,7 +266,7 @@ unsigned readbits(int bits,FILE *f)
     unsigned    n,data=0;
 
     /* Go through the bits and read a whole byte if needed */
-    for(n=0;n<bits;n++) 
+    for(n=0;n<bits;n++)
     {
         data<<=1;
         if(++off==8)
@@ -258,7 +274,7 @@ unsigned readbits(int bits,FILE *f)
             byte=fgetc(f);
             off=0;
         }
-        
+
         if(byte&(0x80>>off))
             data++;
     }

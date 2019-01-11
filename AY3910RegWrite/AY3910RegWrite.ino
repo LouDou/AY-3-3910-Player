@@ -74,7 +74,7 @@ void setup_clock()
     OCR2A = ocr2aval;
 }
 
-enum { INACTIVE = B00, READ = B01, WRITE = B10, ADDRESS = B11};
+enum { INACTIVE = B00, READ = B01, WRITE = B10, ADDRESS = B11 };
 void setup_data(int mode)
 {
   switch(mode)
@@ -150,11 +150,12 @@ void write_2149_reg(uint8_t reg, uint8_t value)
   set_control(INACTIVE);
 
   delayMicroseconds(1);
+
   setup_data(WRITE);
   SetData(value);
-  delayMicroseconds(1);
-    
+  delayMicroseconds(1);  
   set_control(WRITE);
+
   delayMicroseconds(5);
   
   set_control(INACTIVE);
@@ -260,7 +261,7 @@ void loop()
     // In any case, this framing should be more reliable
     // than assuming that the last 14 bytes recieved are
     // intended for the registers in the order given above.
-    if (buf[pr] == ETX && buf[pr - 15] == STX) {
+    if (buf[pr - 15] == STX && buf[pr] == ETX) {
       // Calculate the start of data within the frame
       // within the buffer; this will always end in the
       // second half of buf.
