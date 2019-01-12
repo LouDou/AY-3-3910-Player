@@ -171,6 +171,7 @@ uint8_t read_2149_reg(uint8_t reg)
 
 const char STX = 0x02;
 const char ETX = 0x03;
+const char ACK = 0x06;
 
 // Enough buffer to hold 14 registers, plus 2 frame markers all twice
 // e.g. LEN = (STX + registers + ETX) * 2
@@ -268,11 +269,12 @@ void loop()
       char* data = buf + pr - 14;
       for (int i = 0; i < 14; ++i)
       {
-        write_2149_reg(i, data + i);
+        write_2149_reg(i, data[i]);
       }
 
-      // TODO: we could send an ACK back to the other side
-      // for each processed frame?
+      // send an ACK back to the other side
+      // for each processed frame
+      Serial.write(ACK);
     }
 
     // Advance the write pointer
