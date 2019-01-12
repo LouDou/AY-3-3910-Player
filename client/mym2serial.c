@@ -200,10 +200,6 @@ int main(int argc,char *argv[])
     if (serial_fd > 0)
     {
         unsigned char buffer[16];
-        
-        // send a bunch of junk first
-        nwrite = write(serial_fd, buffer, 13);
-
         // set first and last bytes of buffer to the frame marker bytes
         buffer[0]  = 0x02; // STX
         buffer[15] = 0x03; // ETX
@@ -233,16 +229,16 @@ int main(int argc,char *argv[])
 
             // TEST: send whole frame
             nwrite = write(serial_fd, buffer, 16);
-
             // TODO should check nwrite == 16
 
-            // 50Hz so wait a little bit...
             printf("VBL%ld ", n);
             printf("%02X %02X %02X %02X ", buffer[0], buffer[1], buffer[2], buffer[3]);
             printf("%02X %02X %02X %02X ", buffer[4], buffer[5], buffer[6], buffer[7]);
             printf("%02X %02X %02X %02X ", buffer[8], buffer[9], buffer[10], buffer[11]);
             printf("%02X %02X %02X %02X\n", buffer[12], buffer[13], buffer[14], buffer[15]);
             fflush(stdout);
+
+            // 50Hz so wait a little bit...            
             usleep(20*1000); /* 50Hz */
 
         }
