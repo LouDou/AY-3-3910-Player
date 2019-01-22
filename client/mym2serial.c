@@ -199,10 +199,12 @@ int main(int argc,char *argv[])
     serial_fd = open (argv[2], O_RDWR | O_NOCTTY | O_SYNC);
     if (serial_fd > 0)
     {
-        unsigned char buffer[16];
+        unsigned char buffer[18];
         // set first and last bytes of buffer to the frame marker bytes
         buffer[0]  = 0x02; // STX
-        buffer[15] = 0x03; // ETX
+        buffer[15] = 0x00; // GPIO A, not used
+        buffer[16] = 0x00; // GPIO B, not used
+        buffer[17] = 0x03; // ETX
 
         printf("Serial opened...\n");
         set_interface_attribs (serial_fd, B115200, 0); // 115200 8n1
@@ -217,7 +219,7 @@ int main(int argc,char *argv[])
                 // write the 14 bytes of data to buffer after STX
                 buffer[i + 1] = data[i][n];
             }
-            // buffer[15] ETX is left intact since buffer is 2 bytes
+            // buffer[15, 16, 17] 0x0, 0x0, ETX is left intact since buffer is 4 bytes
             // longer than the register data.
 
             // send the frame over serial port
@@ -228,19 +230,19 @@ int main(int argc,char *argv[])
             // nwrite = write(serial_fd, buffer + 9, 7);
 
             // TEST: send whole frame
-            nwrite = write(serial_fd, buffer, 16);
-            // TODO should check nwrite == 16
+            nwrite = write(serial_fd, buffer, 18);
+            // TODO should check nwrite == 18
 
             printf("VBL%ld ", n);
             printf("%02X %02X %02X %02X ", buffer[0], buffer[1], buffer[2], buffer[3]);
             printf("%02X %02X %02X %02X ", buffer[4], buffer[5], buffer[6], buffer[7]);
             printf("%02X %02X %02X %02X ", buffer[8], buffer[9], buffer[10], buffer[11]);
-            printf("%02X %02X %02X %02X\n", buffer[12], buffer[13], buffer[14], buffer[15]);
+            printf("%02X %02X %02X %02X ", buffer[12], buffer[13], buffer[14], buffer[15]);
+            printf("%02X %02X\n", buffer[16], buffer[17]);
             fflush(stdout);
 
             // 50Hz so wait a little bit...            
             usleep(20*1000); /* 50Hz */
-
         }
         printf("\n");
     }

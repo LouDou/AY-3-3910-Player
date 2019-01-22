@@ -181,7 +181,7 @@ const char ACK = 0x06;
 // of the data frame in the buffer  - regardless of whether
 // junk is received between frames - and which makes it easier
 // to detect a complete frame and read the data out.
-char buf[32];
+char buf[36];
 int pw; // buf write pointer
 int pr; // buf read pointer
 
@@ -190,20 +190,20 @@ int pr; // buf read pointer
 // S == STX, E == ETX, d == data,
 // R == read pointer, W = write pointer
 //
-// #00000000001111111111222222222233
-// #01234567890123456789012345678901
-// [......SddddddddddddddE..........]
-// *                     R
-// ?     W               W
+// #000000000011111111112222222222333333
+// #012345678901234567890123456789012345
+// [......SddddddddddddddddE............]
+// *                       R
+// ?     W                 W
 //
 // W may have been 21, or 05.
-// (check: 05 == (21 + 16) % 32)
+// (check: 05 == (21 + 16) % 36)
 //
-// R will always be > 15 and < 32;
+// R will always be > 17 and < 36;
 // 
-// if    R   == &ETX == 21,
-// then &STX == 06   == 21 - 15
-// and  &d   == 07   == 21 - 14
+// if    R   == &ETX == 23,
+// then &STX == 06   == 23 - 17
+// and  &d   == 07   == 23 - 16
 // 
 // Assuming no junk is recieved, then the data shown
 // as '.' will be a copy of the framed data except that
@@ -237,10 +237,10 @@ void loop()
 
     // Ensure the buffer contains duplicate
     // data and update the read pointer
-    if (pw < 16) {
+    if (pw < 18) {
       // If writing to the first half of buf,
       // advance the read pointer,
-      pr = pw + 16;
+      pr = pw + 18;
       // and copy the current byte forwards
       buf[pr] = buf[pw];
     } else {
@@ -248,26 +248,26 @@ void loop()
       // read pointer is the same as write pointer,
       pr = pw;
       // and copy the current byte backwards
-      buf[pw - 16] = buf[pw];
+      buf[pw - 18] = buf[pw];
     }
 
     // If there is a framed message ending at pr;
     // NOTE: that this is not entirely watertight,
     // because the register data can take any values,
     // including (0x02, 0x03), then there is a chance
-    // that the buf may have STX...ETX 16 bytes apart
+    // that the buf may have STX...ETX 18 bytes apart
     // but these bytes are not the frame markers.
     // TODO needs testing in practice to see how often
     // this occurs.
     // In any case, this framing should be more reliable
-    // than assuming that the last 14 bytes recieved are
+    // than assuming that the last 16 bytes recieved are
     // intended for the registers in the order given above.
-    if (buf[pr - 15] == STX && buf[pr] == ETX) {
+    if (buf[pr - 17] == STX && buf[pr] == ETX) {
       // Calculate the start of data within the frame
       // within the buffer; this will always end in the
       // second half of buf.
-      char* data = buf + pr - 14;
-      for (int i = 0; i < 14; ++i)
+      char* data = buf + pr - 16;
+      for (int i = 0; i < 16; ++i)
       {
         write_2149_reg(i, data[i]);
       }
@@ -278,6 +278,6 @@ void loop()
     }
 
     // Advance the write pointer
-    pw = (pw + 1) % 32;
+    pw = (pw + 1) % 36;
   }
 }
