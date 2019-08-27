@@ -212,6 +212,7 @@ int main(int argc,char *argv[])
         /* Wait a little bit to be sure that the other end is ready... */
         sleep(2);
         printf("Playing now!\n");
+        int gpcount = 0;
         for(n=0;n<rows;n++)
         {
             for(i=0;i<REGS;i++)
@@ -221,6 +222,12 @@ int main(int argc,char *argv[])
             }
             // buffer[15, 16, 17] 0x0, 0x0, ETX is left intact since buffer is 4 bytes
             // longer than the register data.
+            // every 10th frame we change a counter to test the GPIOs
+            if (n % 10 == 0) {
+                gpcount = (gpcount + 1 & 0xFF);
+            }
+            buffer[15] = 0xFF - gpcount;
+            buffer[16] = gpcount;
 
             // send the frame over serial port
             
